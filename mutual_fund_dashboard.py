@@ -53,6 +53,12 @@ with tab1:
     fund_input = st.text_input("Start typing fund name (e.g. Quant Mid Cap Direct Growth)", "Quant Mid Cap Direct Growth")
 
     results = search_yahoo_tickers(fund_input)
+
+    if not results:
+        words = fund_input.split()
+        fallback_query = " ".join(words[:2]) if len(words) >= 2 else fund_input
+        results = search_yahoo_tickers(fallback_query)
+
     match_display = [name for name, _ in results if fund_input.lower() in name.lower()]
 
     if not match_display and results:
