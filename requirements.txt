@@ -1,6 +1,6 @@
-streamlit
 yfinance
-matplotlib
+streamlit
 pandas
-beautifulsoup4
+matplotlib
 requests
+beautifulsoup4
