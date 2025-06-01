@@ -11,12 +11,12 @@ st.title("📈 Mutual Fund Recommendation Dashboard")
 
 # --- Known Fund Ticker Mapping ---
 known_funds = {
-    "Quant Mid Cap Fund Direct Growth": "QUANTMIDCAP.NS",
-    "Axis Bluechip Fund Direct Growth": "AXISBLUECHIP.NS",
-    "Parag Parikh Flexi Cap Fund": "PARAGPARIKH.NS",
-    "Mirae Asset ELSS": "MIRAEEELSS.NS",
-    "HDFC Large Cap Fund": "HDFCLARGECAP.NS",
-    "ICICI Large Cap Fund": "ICICILARGECAP.NS"
+    "quant mid cap fund direct growth": "QUANTMIDCAP.NS",
+    "axis bluechip fund direct growth": "AXISBLUECHIP.NS",
+    "parag parikh flexi cap fund": "PARAGPARIKH.NS",
+    "mirae asset elss": "MIRAEEELSS.NS",
+    "hdfc large cap fund": "HDFCLARGECAP.NS",
+    "icici large cap fund": "ICICILARGECAP.NS"
 }
 
 # --- Fund Explorer Tab ---
@@ -26,15 +26,16 @@ with tab1:
     fund_input = st.text_input("Enter mutual fund name or ticker", "Quant Mid Cap Fund Direct Growth")
 
     if fund_input:
-        ticker = known_funds.get(fund_input)
+        normalized_input = fund_input.strip().lower()
+        ticker = known_funds.get(normalized_input)
 
         # If not found, suggest closest match
         if not ticker:
-            close_matches = get_close_matches(fund_input, known_funds.keys(), n=3, cutoff=0.4)
+            close_matches = get_close_matches(normalized_input, known_funds.keys(), n=3, cutoff=0.4)
             if close_matches:
                 st.warning("Did you mean:")
-                ticker = st.selectbox("Select a matching fund", close_matches)
-                ticker = known_funds.get(ticker)
+                choice = st.selectbox("Select a matching fund", close_matches)
+                ticker = known_funds.get(choice)
             else:
                 st.error("No close matches found. Try a different name.")
                 ticker = None
