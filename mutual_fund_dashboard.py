@@ -1,44 +1,67 @@
-
 import yfinance as yf
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from difflib import get_close_matches
+import requests
+from bs4 import BeautifulSoup
+import json
+import os
 
 st.set_page_config(page_title="Mutual Fund Dashboard", layout="centered")
 
 st.title("📈 Mutual Fund Recommendation Dashboard")
 
-# --- Known Fund Ticker Mapping ---
-known_funds = {
-    "quant mid cap fund direct growth": "QUANTMIDCAP.NS",
-    "axis bluechip fund direct growth": "AXISBLUECHIP.NS",
-    "parag parikh flexi cap fund": "PARAGPARIKH.NS",
-    "mirae asset elss": "MIRAEEELSS.NS",
-    "hdfc large cap fund": "HDFCLARGECAP.NS",
-    "icici large cap fund": "ICICILARGECAP.NS"
-}
+# --- Yahoo Mutual Fund Ticker Lookup with Cache ---
+CACHE_FILE = "fund_ticker_cache.json"
+
+def load_cache():
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, "r") as f:
+            return json.load(f)
+    return {}
+
+def save_cache(cache):
+    with open(CACHE_FILE, "w") as f:
+        json.dump(cache, f)
+
+def fetch_yahoo_ticker(fund_name, cache):
+    normalized_name = fund_name.strip().lower()
+    if normalized_name in cache:
+        return cache[normalized_name]
+    try:
+        query = fund_name.replace(" ", "+")
+        url = f"https://finance.yahoo.com/lookup?s={query}&t=mutualfund"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(res.text, "html.parser")
+        table = soup.find("table")
+        if table:
+            first_row = table.find("tr", class_="simpTblRow")
+            if first_row:
+                ticker = first_row.find("td").text.strip()
+                cache[normalized_name] = ticker
+                save_cache(cache)
+                return ticker
+    except Exception as e:
+        st.warning(f"Could not fetch Yahoo Finance ticker: {e}")
+    return None
 
 # --- Fund Explorer Tab ---
 tab1, tab2, tab3 = st.tabs(["🔍 Fund Explorer", "📂 Portfolio Analyzer", "🏆 Top Fund Rankings"])
 
 with tab1:
-    fund_input = st.text_input("Enter mutual fund name or ticker", "Quant Mid Cap Fund Direct Growth")
+    fund_input = st.text_input("Enter mutual fund name", "Quant Small Cap Fund")
 
     if fund_input:
-        normalized_input = fund_input.strip().lower()
-        ticker = known_funds.get(normalized_input)
+        cache = load_cache()
+        ticker = fetch_yahoo_ticker(fund_input, cache)
 
-        # If not found, suggest closest match
-        if not ticker:
-            close_matches = get_close_matches(normalized_input, known_funds.keys(), n=3, cutoff=0.4)
-            if close_matches:
-                st.warning("Did you mean:")
-                choice = st.selectbox("Select a matching fund", close_matches)
-                ticker = known_funds.get(choice)
-            else:
-                st.error("No close matches found. Try a different name.")
-                ticker = None
+        if ticker:
+            st.success(f"Found ticker: {ticker}")
+        else:
+            st.error("Unable to identify this fund on Yahoo Finance.")
+            ticker = None
 
         if ticker:
             try:
@@ -47,14 +70,14 @@ with tab1:
 
                 st.subheader(f"Fund: {ticker}")
                 st.write(fund.info.get("longName", "No info available"))
-                st.write("**Sector:**", fund.info.get("sector", "N/A"))
-                st.write("**Market Cap:**", fund.info.get("marketCap", "N/A"))
+                st.write("**Fund Type:**", fund.info.get("fundFamily", "N/A"))
+                st.write("**NAV (latest):**", hist['Close'][-1])
                 st.write("**1Y Return (%):**", round(((hist['Close'][-1] - hist['Close'][0]) / hist['Close'][0]) * 100, 2))
 
                 fig, ax = plt.subplots()
                 ax.plot(hist.index, hist['Close'])
-                ax.set_title(f"{ticker} Price History")
-                ax.set_ylabel("Price")
+                ax.set_title(f"{ticker} NAV History (1 Year)")
+                ax.set_ylabel("NAV")
                 ax.set_xlabel("Date")
                 st.pyplot(fig)
 
@@ -62,7 +85,7 @@ with tab1:
                 st.error(f"Failed to fetch data for {ticker}: {e}")
 
     else:
-        st.info("Please enter a mutual fund name or ticker to begin.")
+        st.info("Please enter a mutual fund name to begin.")
 
 # Retain tabs 2 and 3 unchanged for now...
 

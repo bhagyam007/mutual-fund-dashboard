@@ -2,3 +2,5 @@ streamlit
 yfinance
 matplotlib
 pandas
+beautifulsoup4
+requests
